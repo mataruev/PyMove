@@ -49,6 +49,7 @@ from pymove.utils.constants import (
     STOP,
     TILES,
     TRAJ_ID,
+    TID_PART,
     USER_POINT,
 )
 from pymove.utils.datetime import str_to_datetime
@@ -1087,12 +1088,119 @@ def plot_trajectory_by_id(
     return base_map
 
 
+def plot_trajectory_by_tid(
+        move_data: PandasMoveDataFrame,
+        # id: int,
+        id_: int | None = None,
+        n_rows: int | None = None,
+        lat_origin: float | None = None,
+        lon_origin: float | None = None,
+        zoom_start: float = 12,
+        legend: bool = True,
+        base_map: Map | None = None,
+        tile: str = TILES[0],
+        save_as_html: bool = False,
+        color: str | list[str] | None = None,
+        color_by_id: dict | None = None,
+        filename: str = 'plot_trajectories_by_tid.html',
+) -> Map:
+    """
+    Generate visualization of all trajectories with folium.
+
+    Parameters
+    ----------
+    move_data : DataFrame
+        Input trajectory data
+    period: str
+        Period of the day
+    id_: int
+        Trajectory id to plot, by default None
+    n_rows : int, optional
+        Represents number of data rows that are will plot, by default None.
+    lat_origin : float, optional
+        Represents the latitude which will be the center of the map.
+        If not entered, the first data from the dataset is used, by default None.
+    lon_origin : float, optional
+        Represents the longitude which will be the center of the map.
+        If not entered, the first data from the dataset is used, by default None.
+    zoom_start : int, optional
+        Initial zoom level for the map, by default 12.
+    legend: boolean
+        Whether to add a legend to the map, by default True
+    base_map : folium.folium.Map, optional
+        Represents the folium map. If not informed, a new map is generated
+        using the function create_base_map(), with the lat_origin, lon_origin
+         and zoom_start, by default None.
+    tile : str, optional
+        Represents the map tiles, by default TILES[0]
+    save_as_html : bool, optional
+        Represents if want save this visualization in a new file .html, by default False.
+    color : str, list, optional
+        Represents line colors of visualization.
+        Can be a single color name, a list of colors or a colormap name, by default None.
+    color_by_id: dict, optional
+        A dictionary where the key is the trajectory id and value is a color,
+        by default None.
+    filename : str, optional
+        Represents the file name of new file .html,
+        by default 'plot_trajectories_by_period.html'.
+
+    Returns
+    -------
+    Map
+        a folium map with visualization
+
+    Raises
+    ------
+    KeyError
+        If period value is not found in dataframe
+    IndexError
+        If there is no user with the id passed
+
+    Examples
+    --------
+    >>> from pymove.visualization.folium import plot_trajectory_by_period
+    >>> move_df.head()
+              lat          lon              datetime   id
+    0   39.984094   116.319236   2008-10-23 05:53:05    1
+    1   39.984198   116.319322   2008-10-23 05:53:06    1
+    2   39.984224   116.319402   2008-10-23 05:53:11    1
+    3   39.984211   116.319389   2008-10-23 05:53:16    1
+    4   39.984217   116.319422   2008-10-23 05:53:21    1
+    >>> plot_trajectory_by_period(move_df, period='Early morning')
+    """
+    if base_map is None:
+        base_map = create_base_map(
+            move_data,
+            lat_origin,
+            lon_origin,
+            tile=tile,
+            default_zoom_start=zoom_start,
+        )
+
+    columns = move_data.columns
+    # if not TID_PART not in columns:
+    #     print("There is no 'tid' column in Dataframe")
+    #     return
+    values = set(move_data[TID_PART])
+
+    mv_df = _filter_generated_feature(move_data, TID_PART, list(values))
+    mv_df, items = _filter_and_generate_colors(mv_df, id_, n_rows, color, color_by_id)
+    _add_trajectories_to_map(
+        mv_df, items, base_map, legend, save_as_html, filename
+    )
+    to_drop = list(set(move_data.columns) - set(columns))
+    move_data.drop(columns=to_drop, inplace=True)
+
+    return base_map
+
+
 def plot_trajectory_by_period(
-    move_data: PandasMoveDataFrame,
-    period: str,
-    id_: int | None = None,
-    n_rows: int | None = None,
-    lat_origin: float | None = None,
+        move_data: PandasMoveDataFrame,
+        period: str,
+        id_: int | None = None,
+        n_rows: int | None = None,
+        lat_origin: float | None = None,
     lon_origin: float | None = None,
     zoom_start: float = 12,
     legend: bool = True,
